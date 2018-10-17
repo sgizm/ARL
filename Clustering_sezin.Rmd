@@ -1,0 +1,178 @@
+---
+title: "Analysis of survey responses - clustering part"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+# Introduction
+
+# Load libraries
+
+```{r,eval=TRUE,include=FALSE}
+library(ggplot2)
+library(GGally)
+library(data.table)
+library(gmodels)
+library(Hmisc)
+library(corrplot)
+library(magrittr)
+library(reshape2)
+library(scales)
+library(readr)
+library(car)
+library(rgl)
+library(nFactors)
+library(cluster)
+library(pvclust)
+library(plyr)
+library(PerformanceAnalytics)
+library(gplots)
+library(factoextra)
+library(class)
+library(graphics)
+library(NbClust)
+library(ComplexHeatmap)
+```
+
+# Load data
+```{r}
+clus_data <- read.csv("clus_data.csv")
+clus_data <- data.frame(clus_data)
+str(clus_data)
+cols <- c(7:20, 26:35, 37:46) # Selecting the numerical columns
+clus_data_selected <- clus_data[, cols]
+str(clus_data_selected)
+# and a scaled version of that with NA's removed
+clus_data_scaled <- scale(na.omit(clus_data_selected))
+```
+
+# Correlation matrix 
+```{r}
+cor_matrix <- cor(clus_data_selected, use = "pairwise.complete.obs")
+print(cor_matrix %>% round(2))
+# add order = "hclust" as a parameter below for clustering of correlation coefficients
+corrplot.mixed(cor_matrix, lower = "number", upper = "circle", order = "hclust")
+# simpler view with clusters squared:
+corrplot(cor_matrix, order = "hclust", addrect = 5)
+```
+
+*get the  most significant correlations (p > 0.05): * 
+```{r}
+correlations <- rcorr(as.matrix(clus_data_scaled))
+for (i in 1:30){
+  for (j in 1:30){
+    if ( !is.na(correlations$P[i,j])){
+      if ( correlations$P[i,j] < 0.05 ) {
+        print(paste(rownames(correlations$P)[i], "-" , colnames(correlations$P)[j], ": ", correlations$P[i,j]))
+      }}}}
+```
+
+# finding optimal number of clusters
+
+```{r}
+fviz_nbclust(clus_data_scaled, kmeans, method = "wss") +
+  geom_vline(xintercept = 4, linetype = 2)+ labs(subtitle = "Elbow method") #indicates 4
+
+fviz_nbclust(clus_data_scaled, kmeans, method = "silhouette")+
+   labs(subtitle = "Silhouette method") #indicates 2
+
+fviz_nbclust(clus_data_scaled, kmeans, nstart = 25,  method = "gap_stat", nboot = 50)+
+   labs(subtitle = "Gap statistic method") #indicates 1, strange
+
+nb <- NbClust(clus_data_scaled, distance = "euclidean", min.nc = 2,
+        max.nc = 7, method = "kmeans")
+fviz_nbclust(nb) #indicates 2
+```
+
+# heatmap
+```{r}
+col <- colorRampPalette(c("darkblue", "white", "darkorange"))(20) # get some colors
+heatmap(x = cor_matrix, col=col, symm = TRUE)
+```
+*alternative views:*
+```{r}
+suppressWarnings(chart.Correlation(cor_matrix, histogram = TRUE, pch = 19))
+```
+
+```{r, reval=TRUE,include=FALSE}
+# e.g., split by USERB or COMPANY or ROLE
+Heatmap(clus_data_selected, split = clus_data_selected$USERB, row_names_gp = gpar(fontsize = 7))
+Heatmap(clus_data_selected, split = clus_data$COMPANY, row_names_gp = gpar(fontsize = 7))
+Heatmap(clus_data_selected, split = clus_data$ROLE, row_names_gp = gpar(fontsize = 7))
+```
+
+
+# Hierarchical clustering of observations with company identifiers
+```{r}
+d2 <- dist(clus_data_scaled, method="euclidean")
+hcl2 <- hclust(d2, method="ward.D2")
+plot(hcl2, cex=.5)
+groups2 <- cutree(hcl2, k=3)
+```
+
+*another heatmap*
+```{r}
+#heatmap with company identifiers
+# get a color palette equal to the number of clusters
+clusterCols <- rainbow(length(unique(groups2)))
+# create vector of colors for side bar
+myClusterSideBar <- clusterCols[groups2]
+# choose a color palette for the heat map
+myheatcol <- rev(redgreen(75))
+# draw the heat map
+heatmap.2(clus_data_scaled, main="Hierarchical Cluster", Rowv=as.dendrogram(hcl2), Colv=NA, dendrogram="row", scale="row", col=myheatcol, density.info="none", trace="none", RowSideColors= myClusterSideBar)
+```
+
+# Principal components analysis
+```{r}
+pc <- princomp(cor_matrix, cor=TRUE)
+summary(pc)
+loadings(pc)
+plot(pc, type="lines") # indicates 3? main components
+print(pc$scores)
+biplot(pc)
+# to look at the eigenvalues:
+get_eigenvalue(pc)
+```
+
+# Factor analysis
+# How many factors?
+```{r}
+library(nFactors)
+ev <- eigen(cor_matrix)
+ap <- parallel(subject = nrow(na.omit(clus_data_selected)), var = ncol(na.omit(clus_data_selected)), rep = 100, cent = .05)
+nS <- nScree(x = ev$values, aparallel = ap$eigen$qevpea)
+plotnScree(nS) 
+```
+
+# Training sets
+
+```{r}
+# number of rows in the dataset 
+n <- nrow(clus_data)
+n
+# choose randomly 80% of the rows
+ind <- sample(n,  size = n * 0.8)
+# create train set
+training <- clus_data[ind,]
+# create test set 
+testing <- clus_data[-ind,]
+# save the correct classes from test and train data
+test_classes <- clus_data$COMPANY
+testing <- dplyr::select(testing, -COMPANY)
+#OR like below:
+train_classes <- training$COMPANY
+train_classes <- factor(train_classes)
+train.def <- clus_data$COMPANY[-ind]
+# company_pred <- knn(train = training, test = testing, cl = train_def, k=3)
+# however the function above does not work. Is it because of NA's in the data?
+
+# remove the company variable from test data
+# test <- dplyr::select(test, -COMPANY)
+# linear discriminant analysis
+# lda.fit <- lda(age_range ~ , data = train)
+# print the lda.fit object
+# lda.fit
+
+```

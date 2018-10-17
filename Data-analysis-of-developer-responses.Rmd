@@ -1,0 +1,126 @@
+---
+title: "Data analysis of developer responses"
+output:
+  html_notebook: default
+  html_document: default
+  pdf_document: default
+---
+
+
+# Introduction
+
+# Load libraries
+
+```{r,eval=TRUE,include=FALSE}
+library(d3heatmap)
+library(vcd)
+library(GGally)
+library(RColorBrewer)
+library(graphics)
+library(NbClust)
+library(ComplexHeatmap)
+```
+
+# Load data
+
+```{r}
+data <- read.csv( file = "./clus_data.csv", stringsAsFactors = FALSE )
+clus_data <- read.csv("clus_data.csv")
+clus_data <- data.frame(clus_data)
+numericColumns <- sapply(data, is.numeric)
+cols <- c(7:20, 26:35, 37:42) # Selecting the numerical columns
+clus_data_selected <- clus_data[, cols]
+str(clus_data_selected)
+# and a scaled version of that with NA's removed
+clus_data_scaled <- scale(na.omit(clus_data_selected))
+```
+
+```{r}
+summary(as.data.frame(unclass(data)))
+```
+
+## Removing/marking outliers
+
+The column JOBTIME has the values 9999 that would mess up some of the plots and statistics below.
+
+```{r}
+sum( data$JOBTIME > 200 , na.rm=T)
+```
+
+Turn values that too large into NA's.
+
+```{r}
+data$JOBTIME <- ifelse( data$JOBTIME > 200, NA, data$JOBTIME)
+```
+
+# Mosaic plots
+
+It is a good idea to visualize the conditional probabilities between different columns.
+
+## Role vs gender
+
+```{r}
+mosaic( ROLE ~ gender, data = data, color=2:3, rot_labels=c(45,45,45,45)  )
+```
+In the plot above we can see that the interviewed females are much more likely to be UX designers and managers than developers.
+
+## Other trials
+
+```{r}
+mosaic( COMPANY ~ age_range, data = data, color=2:3, rot_labels=c(45,45,45,45)  )
+```
+
+## Role vs age
+
+From the plots in this sub-section we can see:
+
+- that there are no (interviewed) managers between 21-30;
+
+- people older than 50 are much less likely to work in the industry (or answer interview questions);
+
+- people older than 50 are much more likely to be managers, compared to the other age groups.
+
+```{r}
+mosaic( age_range ~ ROLE, data, direction = "v", rot_labels=c(45,45,45,45) )
+```
+```{r}
+mosaic( ROLE ~ age_range, data, rot_labels=c(45,45,45,45) )
+```
+
+
+
+# Clustering
+
+Using hierarchical clustering and visualizing with a heat-map.
+
+```{r}
+#inv <- clus_data_selected[, 15:20]
+#class(inv)
+d3heatmap( clus_data_selected, Rowv = TRUE, Colv = FALSE, scale = "column", na.rm = TRUE, dendrogram = "row", k_row = 4)
+```
+
+### Correlations benween coliumns 
+
+Correlations for all numerical columns:
+
+```{r}
+qData <- data[, grepl("INV",colnames(data)) & numericColumns ]
+qData <- data[, numericColumns ]
+#qData <- qData[ rowSums( is.na(qData) ) < 6, ]
+GGally::ggcorr( qData, method = c("pairwise","spearman") )
+```
+
+It is a good idea to explain the correlations that are close to 1 and -1. Do they make sense, etc.
+
+Correlations for selected numerical columns:
+
+```{r}
+# Numerical columns starting with "INV".
+qData <- data[, grepl("^INV",colnames(data)) & numericColumns ]
+# Removing rows that have too many NA's.
+qData <- qData[ rowSums( is.na(qData) ) < 6, ]
+GGally::ggcorr( qData, method = c("pairwise","spearman") )
+```
+## try http:// if https:// URLs are not supported
+source("https://bioconductor.org/biocLite.R")
+biocLite("ComplexHeatmap")

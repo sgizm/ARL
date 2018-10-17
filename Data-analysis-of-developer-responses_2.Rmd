@@ -1,0 +1,240 @@
+---
+title: "Data analysis of developer responses"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+
+# Introduction
+
+# Load libraries
+
+```{r,eval=TRUE,include=FALSE}
+library(d3heatmap)
+library(vcd)
+library(GGally)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+```
+
+# Load data
+
+```{r}
+data <- read.csv( file = "./clus_data.csv", stringsAsFactors = FALSE )
+#write.csv( x = data[,-1], file = "./clus_data_new.csv", row.names = FALSE )
+
+numericColumns <- sapply(data, is.numeric)
+```
+
+```{r}
+summary(as.data.frame(unclass(data)))
+```
+
+## Removing/marking outliers
+
+The column JOBTIME has the values 9999 that would mess up some of the plots and statistics below.
+
+```{r}
+sum( data$JOBTIME > 200 , na.rm=T)
+```
+
+Turn values that too large into NA's.
+
+```{r}
+data$JOBTIME <- ifelse( data$JOBTIME > 200, NA, data$JOBTIME)
+```
+
+# Mosaic plots
+
+It is a good idea to visualize the conditional probabilities between different columns.
+
+## Role vs gender
+
+```{r}
+mosaic( ROLE ~ COMPANY, data = data, rot_labels=c(45,45,45,45)  )
+```
+In the plot above we can see that the interviewed females are much more likely to be UX designers and managers than developers.
+
+## Role vs age
+
+From the plots in this sub-section we can see:
+
+- that there are no (interviewed) managers between 21-30;
+
+- people older than 50 are much less likely to work in the industry (or answer interview questions);
+
+- people older than 50 are much more likely to be managers, compared to the other age groups.
+
+```{r}
+data1 <- data
+data1 <- data.frame(data1)
+data1[data1=="Ericsson"]<-"A"
+data1[data1=="F-secure"]<-"B"
+data1[data1=="Vaadin"]<-"C"
+data1[data1=="Reaktor"]<-"D"
+
+data2 <- subset(data1, ROLE %in% c("Developer", "Manager", "UX designer"))
+
+#set_labels = list(ROLE = c(" ", " ", ""))
+mosaic( ROLE ~ COMPANY, data2,  gp = gpar(fill = c("lightsteelblue2" , "royalblue3", "snow4") ), direction = "v", rot_labels=c(0,0,45,45), labeling_args = list(set_varnames = c(ROLE=" ", COMPANY=""))) 
+```
+```{r}
+mosaic( ROLE ~ age_range, data, rot_labels=c(45,45,45,45) )
+```
+
+
+
+# Clustering
+
+Using hierarchical clustering and visualizing with a heat-map.
+
+```{r}
+d3heatmap( data[,numericColumns][,-1], Rowv = TRUE, Colv = FALSE, scale = "column", na.rm = TRUE )
+```
+
+### Correlations benween coliumns 
+
+Correlations for all numerical columns:
+
+```{r}
+qData <- data[, grepl("INV",colnames(data)) & numericColumns ]
+qData <- data[, numericColumns ]
+#qData <- qData[ rowSums( is.na(qData) ) < 6, ]
+GGally::ggcorr( qData, method = c("pairwise","spearman") )
+```
+
+It is a good idea to explain the correlations that are close to 1 and -1. Do they make sense, etc.
+
+Correlations for selected numerical columns:
+
+```{r}
+# Numerical columns starting with "INV".
+qData <- data[, grepl("^INV",colnames(data)) & numericColumns ]
+# Removing rows that have too many NA's.
+qData <- qData[ rowSums( is.na(qData) ) < 6, ]
+GGally::ggcorr( qData, method = c("pairwise","spearman") )
+```
+
+# Average interviewees per class
+
+
+## Average interviewee per company
+
+```{r}
+x <- c("INVA", "INVC", "INVD", "INVE", "INVF",  "INVN",  "INVL")
+qColNames <- colnames(data)[ grepl(paste(x, collapse = "|"), colnames(data)) & numericColumns ]
+#qColNames <- colnames(data)[ grepl("^USER", colnames(data)) & numericColumns ]
+colNamesToColIndsRules <- setNames( 1:length(qColNames), qColNames )
+qDF <- 
+  melt( data = data, id.vars = c("COMPANY") ) %>% 
+  dplyr::filter( variable %in% qColNames ) %>%
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::filter(!is.na(COMPANY)) 
+#%>%
+  #dplyr::filter(!is.na(ROLE))
+
+group_means <- qDF %>%
+  group_by(COMPANY, variable) %>%
+  dplyr::summarise(mean = mean(as.numeric(value)))
+
+group_means[group_means=="Ericsson"]<-"A"
+group_means[group_means=="F-secure"]<-"B"
+group_means[group_means=="Vaadin"]<-"C"
+group_means[group_means=="Reaktor"]<-"D"
+
+
+#levels(group_means$variable)
+group_means$variable <- factor(group_means$variable)
+#Reaktor <- subset(group_means, COMPANY=="A")
+#ggplot(subset(Reaktor, ROLE %in% c("Developer", "Manager", "UX designer")),
+group_means <- data.frame(group_means)
+#subset(group_means, COMPANY %in% c("Developer", "Manager", "UX designer"))
+ggplot(group_means, aes(x=as.numeric(variable), y=mean, color=COMPANY, linetype=COMPANY)) + geom_line(size=1) +
+  scale_linetype_manual(values=c("solid", "twodash", "dotted", "longdash")) +
+  scale_x_continuous(labels=as.character(group_means$variable), breaks=as.numeric(group_means$variable))+
+  theme(axis.text=element_text(size=12))+
+  theme(axis.title.x=element_blank(),
+        #axis.text.y=element_blank(),
+        #axis.ticks.x=element_blank(),
+        axis.title.y=element_blank()) +
+  scale_y_discrete(limits = c(2, 4)) + scale_y_discrete(limits= c(2, 3, 4)) +
+  theme(legend.key.size = unit(3,"line"),  legend.text=element_text(size=12))
+
+  
+
+```
+
+## Average interviewee per company
+
+```{r}
+#x <- c("INVA", "INVC", "INVD", "INVE", "INVF",  "INVN",  "INVL")
+#qColNames <- colnames(data)[ grepl(paste(x, collapse = "|"), colnames(data)) & numericColumns ]
+qColNames <- colnames(data)[ grepl("^USER", colnames(data)) & numericColumns ]
+colNamesToColIndsRules <- setNames( 1:length(qColNames), qColNames )
+qDF <- 
+  melt( data = data, id.vars = c("ROLE") ) %>% 
+  dplyr::filter( variable %in% qColNames ) %>%
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::filter(!is.na(ROLE)) 
+#%>%
+  #dplyr::filter(!is.na(ROLE))
+
+group_means <- qDF %>%
+  group_by(ROLE, variable) %>%
+  dplyr::summarise(mean = mean(as.numeric(value)))
+
+group_means[group_means=="Ericsson"]<-"A"
+group_means[group_means=="F-secure"]<-"B"
+group_means[group_means=="Vaadin"]<-"C"
+group_means[group_means=="Reaktor"]<-"D"
+
+
+#levels(group_means$variable)
+group_means$variable <- factor(group_means$variable)
+#Reaktor <- subset(group_means, COMPANY=="A")
+#ggplot(subset(Reaktor, ROLE %in% c("Developer", "Manager", "UX designer")),
+group_means <- data.frame(group_means)
+#subset(group_means, COMPANY %in% c("Developer", "Manager", "UX designer"))
+ggplot(subset(group_means, ROLE %in% c("Developer", "Manager", "UX designer")), aes(x=as.numeric(variable), y=mean, color=ROLE, linetype=ROLE)) + geom_line(size=1) +
+  scale_linetype_manual(values=c("solid", "twodash", "dotted", "longdash")) +
+  scale_x_continuous(labels=as.character(group_means$variable), breaks=as.numeric(group_means$variable))+
+  theme(axis.text=element_text(size=12))+
+  theme(axis.title.x=element_blank(),
+        #axis.text.y=element_blank(),
+        #axis.ticks.x=element_blank(),
+        axis.title.y=element_blank()) +
+  scale_y_discrete(limits = c(2, 4)) + scale_y_discrete(limits= c(2, 3, 4)) +
+  theme(legend.key.size = unit(3,"line"),  legend.text=element_text(size=12))
+
+  
+
+```
+
+## Average interviewee per role
+
+```{r}
+qDF <- 
+  melt( data = data, id.vars = c("ROLE") ) %>% 
+  dplyr::filter( variable %in% qColNames ) %>%
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::filter(!is.na(ROLE)) 
+  
+group_means <- qDF %>%
+  group_by(ROLE, variable) %>%
+  dplyr::summarise(mean = mean(as.numeric(value)))
+
+group_means$variable <- factor(group_means$variable)
+
+ggplot(subset(group_means, ROLE %in% c("Developer", "Manager", "UX designer")), aes(x=as.numeric(variable), y=mean, color=ROLE, linetype=ROLE)) + geom_line(size=1) + scale_linetype_manual(values=c("solid", "twodash", "dotted")) +
+    theme(axis.text=element_text(size=12)) +
+  scale_x_continuous(labels=as.character(group_means$variable), breaks=as.numeric(group_means$variable)) +
+  theme(axis.title.x=element_blank(),
+        #axis.text.y=element_blank(),
+        #axis.ticks.x=element_blank(),
+        axis.title.y=element_blank()) +
+   scale_y_discrete(limits = c(1, 4)) + scale_y_discrete(limits= c(1, 2, 3, 4)) +
+  theme(legend.key.size = unit(3,"line"),  legend.text=element_text(size=12))
+``` 
