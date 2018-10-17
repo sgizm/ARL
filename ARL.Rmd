@@ -38,7 +38,7 @@ library(arulesViz)
 
 # Load data
 ```{r}
-clus_data <- read.csv("clus_data.csv")
+ clus_data <- read.csv("clus_data.csv")
 clus_data <- data.frame(clus_data)
 str(clus_data)
 cols <- c(7:20, 26:35, 37:46) # Selecting the numerical columns
