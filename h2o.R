@@ -2,7 +2,7 @@
 library(h2o)
 h2o.init()
 h2o.removeAll() # Clean slate - just in case the cluster was already running
-df <- h2o.importFile(path = normalizePath("/Users/yaman/Desktop/IST/Anton/Anton.csv"))
+df <- h2o.importFile(path = normalizePath("/Users/yaman/Desktop/IST/ARL/Anton.csv"))
 
 mydata <- as.h2o(x=df, destination_frame= "mydata")
 

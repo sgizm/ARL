@@ -21,16 +21,16 @@ library(scales)
 library(readr)
 library(car)
 library(rgl)
-library(nFactors)
-library(cluster)
-library(pvclust)
-library(plyr)
-library(PerformanceAnalytics)
-library(gplots)
-library(factoextra)
-library(class)
-library(graphics)
-library(NbClust)
+#library(nFactors)
+#library(cluster)
+#library(pvclust)
+#library(plyr)
+#library(PerformanceAnalytics)
+#library(gplots)
+#library(factoextra)
+#library(class)
+#library(graphics)
+#library(NbClust)
 #library(ComplexHeatmap)
 library(arules)
 library(arulesViz)
@@ -38,7 +38,7 @@ library(arulesViz)
 
 # Load data
 ```{r}
- clus_data <- read.csv("clus_data.csv")
+clus_data <- read.csv("clus_data.csv")
 clus_data <- data.frame(clus_data)
 str(clus_data)
 cols <- c(7:20, 26:35, 37:46) # Selecting the numerical columns
@@ -106,12 +106,12 @@ setMethod("sort", signature(x = "associations"),
     x[do.call(order, c(q, list(na.last = na.last, decreasing = decreasing)))]
 }) 
 
-rules = apriori(trial, parameter=list(support=0.05, confidence=0.5, minlen=3, maxlen=36, maxtime=150), appearance = list( rhs=c("condexp=Yes, actively"), default = "lhs"))
+rules = apriori(trial, parameter=list(support=0.05, confidence=0.65, minlen=2, maxlen=5, maxtime=150), appearance = list( rhs=c("X3.3C.1=agree"), default = "lhs"))
 
 #, appearance = list( rhs=c("X3.3B.1=agree"), default = "lhs")
 #, appearance = list(lhs=c("INVE.1=agree"))
 sorted_mult <- sort(rules, decreasing = TRUE, by=c("confidence", "count"))
-inspect(sorted_mult[1:100])
+inspect(sorted_mult[1:20])
  
 rules
 topRules <- rules[1:10]
