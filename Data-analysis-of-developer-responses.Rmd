@@ -18,7 +18,6 @@ library(GGally)
 library(RColorBrewer)
 library(graphics)
 library(NbClust)
-library(ComplexHeatmap)
 ```
 
 # Load data

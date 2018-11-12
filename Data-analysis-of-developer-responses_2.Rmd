@@ -54,7 +54,23 @@ It is a good idea to visualize the conditional probabilities between different c
 ## Role vs gender
 
 ```{r}
-mosaic( ROLE ~ COMPANY, data = data, rot_labels=c(45,45,45,45)  )
+data1 <- data
+data1 <- data.frame(data1)
+data1[data1=="Ericsson"]<-"Company A"
+data1[data1=="F-secure"]<-"Company B"
+data1[data1=="Vaadin"]<-"Company C"
+data1[data1=="Reaktor"]<-"Company D"
+
+# data2 <- subset(data1, condexp %in% c("Never", "Rarely", "Occasionally", "Yes, actively"))
+data1$condexp = factor(data1$condexp, levels=c("Never", "Rarely", "Occasionally", "Yes, actively"))
+data2 <- subset(data1, ROLE %in% c("Developer", "Manager", "UX designer"))
+
+
+mosaic( condexp ~ ROLE, data = data2, rot_labels=c(33,0,0,0), highlighting_fill = subs_pal[3:6], labeling_args = list(set_varnames = c(condexp=" ", ROLE=""), just_labels = c("left", 
+                                                 "center", 
+                                                 "center", 
+                                                 "right"), offset_labels = c(-0.72, 0, 0, 0))
+      )
 ```
 In the plot above we can see that the interviewed females are much more likely to be UX designers and managers than developers.
 
@@ -79,6 +95,9 @@ data1[data1=="Reaktor"]<-"D"
 data2 <- subset(data1, ROLE %in% c("Developer", "Manager", "UX designer"))
 
 #set_labels = list(ROLE = c(" ", " ", ""))
+subs_pal <- colorspace::diverge_hcl(7)
+#mosaic( ROLE ~ COMPANY, data = data2, highlighting_fill = subs_pal[1:4],  rot_labels=c(0,0,45,45), labeling_args = list(set_varnames = c(ROLE=" ", COMPANY=""))  )
+
 mosaic( ROLE ~ COMPANY, data2,  gp = gpar(fill = c("lightsteelblue2" , "royalblue3", "snow4") ), direction = "v", rot_labels=c(0,0,45,45), labeling_args = list(set_varnames = c(ROLE=" ", COMPANY=""))) 
 ```
 ```{r}
@@ -124,7 +143,9 @@ GGally::ggcorr( qData, method = c("pairwise","spearman") )
 ## Average interviewee per company
 
 ```{r}
-x <- c("INVA", "INVC", "INVD", "INVE", "INVF",  "INVN",  "INVL")
+x <- c("INVA", "INVB", "INVC", "INVD", "INVE",  "INVF",  "INVG")
+#"INVH", "INVI", "INVJ", "INVK", "INVL", "INVM", "INVN"
+#"INVA", "INVB", "INVC", "INVD", "INVE",  "INVF",  "INVG"
 qColNames <- colnames(data)[ grepl(paste(x, collapse = "|"), colnames(data)) & numericColumns ]
 #qColNames <- colnames(data)[ grepl("^USER", colnames(data)) & numericColumns ]
 colNamesToColIndsRules <- setNames( 1:length(qColNames), qColNames )
@@ -159,8 +180,7 @@ ggplot(group_means, aes(x=as.numeric(variable), y=mean, color=COMPANY, linetype=
   theme(axis.title.x=element_blank(),
         #axis.text.y=element_blank(),
         #axis.ticks.x=element_blank(),
-        axis.title.y=element_blank()) +
-  scale_y_discrete(limits = c(2, 4)) + scale_y_discrete(limits= c(2, 3, 4)) +
+        axis.title.y=element_blank())  + coord_cartesian(ylim=c(1, 5)) +
   theme(legend.key.size = unit(3,"line"),  legend.text=element_text(size=12))
 
   
@@ -172,7 +192,7 @@ ggplot(group_means, aes(x=as.numeric(variable), y=mean, color=COMPANY, linetype=
 ```{r}
 #x <- c("INVA", "INVC", "INVD", "INVE", "INVF",  "INVN",  "INVL")
 #qColNames <- colnames(data)[ grepl(paste(x, collapse = "|"), colnames(data)) & numericColumns ]
-qColNames <- colnames(data)[ grepl("^USER", colnames(data)) & numericColumns ]
+qColNames <- colnames(data)[ grepl("^X3.3", colnames(data)) & numericColumns ]
 colNamesToColIndsRules <- setNames( 1:length(qColNames), qColNames )
 qDF <- 
   melt( data = data, id.vars = c("ROLE") ) %>% 
@@ -206,7 +226,7 @@ ggplot(subset(group_means, ROLE %in% c("Developer", "Manager", "UX designer")), 
         #axis.text.y=element_blank(),
         #axis.ticks.x=element_blank(),
         axis.title.y=element_blank()) +
-  scale_y_discrete(limits = c(2, 4)) + scale_y_discrete(limits= c(2, 3, 4)) +
+  coord_cartesian(ylim=c(1, 5)) +
   theme(legend.key.size = unit(3,"line"),  legend.text=element_text(size=12))
 
   

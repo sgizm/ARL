@@ -63,7 +63,7 @@ clus_data <- cbind(clus_data, apply(qData3, 2, function(x) {x[x == 1 |x == 2] <-
 # Numerical columns starting with "X3.3.".
 qData4 <- suppressWarnings(clus_data[, grepl("^X3.3",colnames(clus_data)) & numericColumns ])
 clus_data <- cbind(clus_data, apply(qData4, 2, function(x) {x[x == 1 |x == 2] <- "disagree"; x[x == 3] <- "indecisive" ; x[x == 4 |x == 5] <- "agree"; x}))
-# Numerical columns starting with "X3.3.".
+# Numerical columns starting with "M.".
 qData5 <- suppressWarnings(clus_data[, grepl("^M",colnames(clus_data)) & numericColumns ])
 clus_data <- cbind(clus_data, apply(qData5, 2, function(x) {x[x == 1 |x == 2] <- "not often"; x[x == 3] <- "indecisive" ; x[x == 4 |x == 5] <- "often"; x}))
 # Worktime":
@@ -89,7 +89,7 @@ colnames(clus_data)
 class(clus_data)
 str(clus_data)
 
-cols <- c(4, 7:9, 10, 12:15, 20, 21, 23, 25, 35, 43, 44, 36, 37) 
+cols <- c(4, 7:9, 10, 12:15, 17:20, 21, 23, 25, 26, 27, 28, 33, 34, 35, 36, 37, 38, 39, 43,44) 
 trial <- factors.df[, cols]
 trial_non <- na.omit(trial)
 str(trial_non)
@@ -106,29 +106,39 @@ setMethod("sort", signature(x = "associations"),
     x[do.call(order, c(q, list(na.last = na.last, decreasing = decreasing)))]
 }) 
 
-rules = apriori(trial, parameter=list(support=0.05, confidence=0.65, minlen=2, maxlen=5, maxtime=150), appearance = list( rhs=c("X3.3C.1=agree"), default = "lhs"))
+# rules = apriori(trial, parameter=list(support=0.05, confidence=0.65, minlen=2, maxlen=5, maxtime=150))
+
+rules = apriori(trial, parameter=list(support=0.05, confidence=0.65, minlen=2, maxlen=5, maxtime=150))
+
 
 #, appearance = list( rhs=c("X3.3B.1=agree"), default = "lhs")
 #, appearance = list(lhs=c("INVE.1=agree"))
-sorted_mult <- sort(rules, decreasing = TRUE, by=c("confidence", "count"))
+sorted_mult <- sort(rules, decreasing = TRUE, by=c("confidence", "support"))
 inspect(sorted_mult[1:20])
- 
+itemFrequencyPlot(items(sorted_mult), topN=10, type="absolute", main="Item Frequency")
+
+
 rules
-topRules <- rules[1:10]
+topRules <- rules[1:100]
 inspect(rules[1:15])
 top.confidence <- sort(rules, decreasing = TRUE, na.last = NA, by = "confidence")
 inspect(top.confidence[1:40])
 top.lift <- sort(rules, decreasing = TRUE, na.last = NA, by = "lift")
-inspect(top.lift[1:40])
-plot(sorted_mult[1:7], method = "graph")
+inspect(top.confidence[1:40])
+plot(sorted_mult[1:25], method = "graph")
 plot(topRules, method = "grouped")
+
+# or with eclat function:
+# frequentItems <- eclat (trial, parameter = list(supp = 0.07, maxlen = 15)) # calculates support for frequent items
+# inspect inspect(frequentItems[1:100])
+# itemFrequencyPlot(items(frequentItems), topN=10, type="absolute", main="Item Frequency") # plot frequent items
 
 ```
 # Mosaic confirmations
 ```{r}
 subs_pal <- colorspace::diverge_hcl(7)
 
-mosaic( ROLE ~ COMPANY , data = clus_data, highlighting_fill = subs_pal[1:4], rot_labels=c(45,45,45,45)  )
+mosaic( COMPANY ~ X3.3C.1, data = clus_data, highlighting_fill = subs_pal[1:4], rot_labels=c(45,45,45,45)  )
 ```
 
 
